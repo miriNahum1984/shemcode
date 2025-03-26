@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משחק שם קוד - גרסה משודרגת</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <!-- טעינת ספריות חיצוניות עם נסיון גיבוי -->
+    <script>
+        // פונקציה לטעינת סקריפט עם גיבוי
+        function loadScript(primaryUrl, fallbackUrl, id) {
+            const script = document.createElement('script');
+            script.id = id;
+            script.onerror = function () {
+                console.warn(`שגיאה בטעינת ${primaryUrl}, מנסה גיבוי...`);
+                if (fallbackUrl) {
+                    const fallbackScript = document.createElement('script');
+                    fallbackScript.src = fallbackUrl;
+                    fallbackScript.id = id + '-fallback';
+                    document.head.appendChild(fallbackScript);
+                }
+            };
+            script.src = primaryUrl;
+            document.head.appendChild(script);
+        }
+
+        // טעינת ספריות עם גיבוי
+        loadScript("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js",
+            "https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js",
+            "qrcode-lib");
+
+        loadScript("https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js",
+            "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js",
+            "jsqr-lib");
+    </script>
+
+    <!-- קישור לקובץ CSS -->
+    <link rel="stylesheet" href="codenames.css">
+
+    <!-- בדיקת טעינת ספריות בצורה עמידה -->
+    <script>
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                if (typeof QRCode === 'undefined') {
+                    console.error('ספריית QRCode לא נטענה!');
+                    console.log('משתמש בפונקציית גיבוי...');
+                }
+                if (typeof jsQR === 'undefined') {
+                    console.error('ספריית jsQR לא נטענה!');
+                    console.log('פונקציונליות סריקת QR לא תעבוד');
+                }
+            }, 1000);
+        });
+    </script>
+
+    <style>
+        /* סגנון כפתור סריקת QR בצבע ירוק */
+        .qr-scan-btn {
+            background-color: #4CAF50; /* צבע ירוק */
+            color: white;
+            margin-top: 10px;
+            display: inline-block; /* שומר על הגודל המקורי */
+        }
+
+            .qr-scan-btn:hover {
+                background-color: #45a049; /* ירוק כהה יותר בהצבעה */
+            }
+
+        /* התאמת גודל QR לתצוגת מובייל */
+        .qr-container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        #qrcode, #shareQrCode {
+            margin: 0 auto;
+            max-width: 100%;
+        }
+
+            #qrcode img, #shareQrCode img,
+            #qrcode canvas, #shareQrCode canvas {
+                max-width: 200px !important;
+                height: auto !important;
+                margin: 0 auto;
+                display: block;
+            }
+
+        /* התאמות תצוגה למובייל */
+        @media (max-width: 480px) {
+            #qrcode img, #shareQrCode img,
+            #qrcode canvas, #shareQrCode canvas {
+                max-width: 160px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>משחק שם קוד</h1>
+
+        <!-- מסך כניסה למשחק -->
+        <div id="welcomeContainer" class="welcome-panel">
+            <h2>ברוכים הבאים למשחק שם קוד</h2>
+
+            <div>
+                <h3>בחר את התפקיד שלך:</h3>
+                <div class="role-selection">
+                    <div class="role-card" data-role="gameManager">
+                        <div class="role-icon">🎮</div>
+                        <h3>מנהל משחק</h3>
+                        <p>יכול לראות את כל המילים ואת הקלפים</p>
+                    </div>
+                    <div class="role-card" data-role="blueSpymaster">
+                        <div class="role-icon">🔍</div>
+                        <h3>ראש מודיעין כחול</h3>
+                        <p>רואה את הכל ונותן רמזים</p>
+                    </div>
+                    <div class="role-card" data-role="redSpymaster">
+                        <div class="role-icon">🔎</div>
+                        <h3>ראש מודיעין אדום</h3>
+                        <p>רואה את הכל ונותן רמזים</p>
+                    </div>
+                    <div class="role-card" data-role="player">
+                        <div class="role-icon">👤</div>
+                        <h3>שחקן רגיל</h3>
+                        <p>מנחש את המילים לפי הרמזים</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="game-code-container">
+                <h3>צור משחק חדש:</h3>
+                <button id="createGameBtn" class="primary-btn">צור משחק חדש</button>
+                <div id="gameCodeCreator" style="display: none; margin-top: 15px;">
+                    <p>קוד המשחק שלך:</p>
+                    <div class="game-code-display" id="generatedGameCode"></div>
+
+                    <!-- מכל קוד QR למשחק -->
+                    <div class="qr-container">
+                        <h3>קוד QR למשחק</h3>
+                        <div id="qrcode"></div>
+                        <a href="#" id="downloadQR" class="qr-download">הורד קוד QR לשיתוף</a>
+                    </div>
+
+                    <p>שתף את הקוד או את ה-QR עם שאר המשתתפים</p>
+                    <button id="startGameBtn" class="primary-btn">התחל משחק</button>
+                </div>
+
+                <div class="divider"></div>
+
+                <h3>הצטרף למשחק קיים:</h3>
+                <div>
+                    <input type="text" id="gameCodeInput" class="game-code-input" placeholder="הזן קוד משחק" />
+                    <button id="joinGameBtn" class="primary-btn">הצטרף למשחק</button>
+                </div>
+
+                <!-- כפתור סריקת QR - מוצב מתחת לכפתור הצטרף למשחק ובצבע ירוק -->
+                <div style="text-align: center; margin-top: 10px;">
+                    <button id="scanQrBtn" class="qr-scan-btn qr-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="8" y2="3"></line>
+                            <line x1="16" y1="21" x2="16" y2="3"></line>
+                            <line x1="3" y1="8" x2="21" y2="8"></line>
+                            <line x1="3" y1="16" x2="21" y2="16"></line>
+                        </svg>
+                        סרוק קוד QR
+                    </button>
+                </div>
+
+                <!-- אזור סריקת QR -->
+                <div id="scannerArea" style="display: none; margin-top: 20px;">
+                    <video id="scannerVideo" playsinline></video>
+                    <div class="scanner-overlay"></div>
+                </div>
+            </div>
+
+            <div class="game-info">
+                <h3>איך משחקים?</h3>
+                <p>
+                    <strong>מנהל המשחק:</strong> רואה את כל הלוח ומנהל את המשחק.<br>
+                    <strong>ראשי המודיעין:</strong> רואים את כל הקלפים ונותנים רמזים לקבוצה שלהם.<br>
+                    <strong>שחקנים:</strong> בכל תור, יש לנחש את הקלפים של הקבוצה לפי הרמז שקיבלתם מראש המודיעין.
+                </p>
+                <p>קבוצה מנצחת אם חשפה את כל הקלפים שלה. אם קבוצה חושפת את הקלף השחור - היא מפסידה מיד!</p>
+            </div>
+        </div>
+
+        <!-- מסך המשחק עצמו -->
+        <div id="gameContainer">
+            <div class="current-game-info">
+                תפקיד: <span id="currentRole"></span>
+            </div>
+
+            <div class="controls">
+                <button id="newGameBtn" class="neutral-btn">משחק חדש</button>
+                <span id="spymasterControls" style="display: none;">
+                    <button id="spymasterViewBtn" class="primary-btn">הצג/הסתר קלפים</button>
+                </span>
+                <button id="backToLobbyBtn" class="neutral-btn">חזרה ללובי</button>
+                <!-- כפתור לשיתוף QR של המשחק הנוכחי -->
+                <button id="shareGameBtn" class="primary-btn">שתף משחק</button>
+            </div>
+
+            <div class="turn-indicator" id="turnIndicator">תור הקבוצה הכחולה</div>
+
+            <div id="gameBoard" class="game-board">
+                <!-- הלוח ייווצר דינמית ע"י JavaScript -->
+            </div>
+
+            <div id="clueSection" style="display: none;">
+                <h3>הרמז האחרון:</h3>
+                <div id="lastClue" style="font-size: 1.2rem; margin: 10px 0;">-</div>
+            </div>
+
+            <!-- חלון מודאלי לשיתוף QR -->
+            <div id="shareModal">
+                <div class="modal-content">
+                    <h3>שתף את המשחק</h3>
+                    <div id="shareQrCode"></div>
+                    <button id="closeShareModal" class="neutral-btn">סגור</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- קישור לקובץ JavaScript -->
+    <script src="codenames.js"></script>
+
+    <!-- עדכון לקוד generateQRCode כדי להקטין את גודל QR -->
+    <script>
+        // החלפת פונקצית QR בגרסה עם גודל מותאם למובייל
+        window.addEventListener('load', function () {
+            // נחכה קצת לטעינת הדף
+            setTimeout(function () {
+                // נשמור את הפונקציה המקורית
+                const originalGenerateQRCode = window.generateQRCode;
+
+                // נחליף בפונקציה משופרת
+                if (originalGenerateQRCode) {
+                    window.generateQRCode = function (text, elementId) {
+                        console.log(`יוצר קוד QR מותאם מובייל עבור: ${text}`);
+
+                        // נקה את האלמנט הקיים
+                        const element = document.getElementById(elementId);
+                        if (!element) {
+                            console.error(`האלמנט ${elementId} לא נמצא!`);
+                            return;
+                        }
+
+                        element.innerHTML = '';
+
+                        // נבדוק אם מדובר במובייל
+                        const isMobile = window.innerWidth <= 768;
+                        const qrSize = isMobile ? 160 : 200;
+
+                        try {
+                            // ננסה קודם עם ספריית QRCode
+                            if (typeof QRCode !== 'undefined') {
+                                new QRCode(element, {
+                                    text: text,
+                                    width: qrSize,
+                                    height: qrSize,
+                                    colorDark: '#000000',
+                                    colorLight: '#ffffff',
+                                    correctLevel: QRCode.CorrectLevel.L
+                                });
+                                console.log('קוד QR מותאם למובייל נוצר בהצלחה');
+                            } else {
+                                throw new Error('ספריית QRCode לא זמינה');
+                            }
+                        } catch (error) {
+                            console.warn('שימוש בשיטה חלופית ליצירת QR:', error);
+
+                            // גוגל צ'ארט API עם גודל מותאם
+                            const url = `https://chart.googleapis.com/chart?cht=qr&chs=${qrSize}x${qrSize}&chld=L|0&chl=${encodeURIComponent(text)}`;
+
+                            const img = document.createElement('img');
+                            img.src = url;
+                            img.alt = 'QR Code';
+                            img.style.width = `${qrSize}px`;
+                            img.style.height = `${qrSize}px`;
+                            img.style.maxWidth = '100%';
+                            img.style.margin = '0 auto';
+                            img.style.display = 'block';
+
+                            element.innerHTML = '';
+                            element.appendChild(img);
+
+                            // שומר את הקישור להורדה
+                            element.dataset.downloadUrl = url;
+                        }
+                    };
+
+                    console.log('הפונקציה להתאמת גודל QR נטענה בהצלחה');
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
